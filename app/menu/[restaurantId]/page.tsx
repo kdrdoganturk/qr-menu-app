@@ -1,7 +1,6 @@
 // app/menu/[restaurantId]/page.tsx
 // Bu dosya Server Component'tir (Sunucu Bileşeni).
 
-// DÜZELTME: Doğru Supabase bağlantı dosyasını import ediyoruz.
 import { supabase } from '@/lib/supabase'; 
 
 // TypeScript Tür Tanımlamaları
@@ -14,13 +13,21 @@ type MenuItem = {
   is_available: boolean;
 };
 
-type MenuCategory = {
+// Supabase'den gelen ham veri yapısı (içinde 'menu_items' var)
+type RawMenuCategory = {
     id: string;
     name: string;
     menu_items: MenuItem[]; 
 };
 
-// Next.js'in dinamik parametreleri otomatik olarak çektiği fonksiyon tipi
+// Sayfada döngüye soktuğumuz nihai veri yapısı (içinde 'items' var)
+type DisplayMenuCategory = {
+    id: string;
+    name: string;
+    items: MenuItem[]; 
+};
+
+
 export default async function CustomerMenuPage({ params }: { params: { restaurantId: string } }) {
   
   // Menü verilerini Supabase'den çekme (Anon Key ile okunur)
@@ -50,10 +57,14 @@ export default async function CustomerMenuPage({ params }: { params: { restauran
     );
   }
 
-  // Sadece mevcut (is_available = true) olan öğeleri filtreleme
-  const menuData: MenuCategory[] = (categories as MenuCategory[] || [])
+  // Ham veriyi (RawMenuCategory) alıp, DisplayMenuCategory tipine dönüştürüp filtreliyoruz
+  const rawData: RawMenuCategory[] = (categories as RawMenuCategory[] || []);
+
+  const menuData: DisplayMenuCategory[] = rawData
     .map(category => ({
-      ...category,
+      id: category.id,
+      name: category.name,
+      // DÜZELTME: menu_items'ı alıp 'items' adıyla atıyoruz.
       items: category.menu_items.filter(item => item.is_available),
     }))
     // İçinde hiç mevcut öğe kalmayan kategorileri gizle
@@ -81,6 +92,7 @@ export default async function CustomerMenuPage({ params }: { params: { restauran
                 </h2>
                 
                 <div className="space-y-6">
+                  {/* HATA ÇÖZÜLDÜ: category.items kullanılıyor */}
                   {category.items.map((item) => (
                     <article key={item.id} className="flex justify-between items-start border-b pb-4 last:border-b-0 last:pb-0">
                       <div className="flex-1 pr-4">
