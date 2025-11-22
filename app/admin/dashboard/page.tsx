@@ -1,3 +1,4 @@
+// app/admin/dashboard/page.tsx
 
 'use client';
 
@@ -5,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-// --- TYPES ---
+// ---------------- TYPES ----------------
 
 type Category = {
   id: string;
@@ -23,7 +24,7 @@ type MenuItem = {
   categories: { name: string };
 };
 
-// --- LOGOUT BUTTON ---
+// ---------------- LOGOUT BUTTON ----------------
 
 function LogoutButton() {
   const router = useRouter();
@@ -36,14 +37,14 @@ function LogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition duration-150"
+      className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded"
     >
       Çıkış Yap
     </button>
   );
 }
 
-// --- CATEGORY MANAGER ---
+// ---------------- CATEGORY MANAGER ----------------
 
 function CategoryManager() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -64,7 +65,7 @@ function CategoryManager() {
       .order('display_order', { ascending: true });
 
     if (error) setError(error.message);
-    else setCategories((data as Category[]) || []);
+    else setCategories(data || []);
 
     setLoading(false);
   };
@@ -89,7 +90,7 @@ function CategoryManager() {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('Bu kategoriyi silmek istediğinizden emin misiniz?')) return;
+    if (!confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) return;
 
     setLoading(true);
 
@@ -105,58 +106,45 @@ function CategoryManager() {
   };
 
   return (
-    <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-      <h3 className="text-2xl font-semibold mb-4 border-b pb-2 text-indigo-700">
-        Kategoriler (Çorbalar, Tatlılar vb.)
-      </h3>
+    <div className="mt-8 bg-white p-6 rounded-lg shadow">
+      <h3 className="text-2xl font-semibold mb-4">Kategoriler</h3>
 
-      {error && (
-        <p className="text-red-500 mb-4 bg-red-100 p-2 rounded">Hata: {error}</p>
-      )}
+      {error && <p className="text-red-500 mb-4">{error}</p>}
 
-      <form onSubmit={handleAddCategory} className="flex space-x-3 mb-6">
+      <form onSubmit={handleAddCategory} className="flex gap-3 mb-6">
         <input
           type="text"
-          placeholder="Yeni Kategori Adı"
+          placeholder="Yeni kategori adı..."
           value={newCategoryName}
           onChange={(e) => setNewCategoryName(e.target.value)}
-          className="flex-grow p-3 border rounded-md focus:border-indigo-500"
-          required
+          className="flex-1 border p-3 rounded"
         />
         <button
           type="submit"
-          disabled={loading || !newCategoryName.trim()}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-md transition disabled:opacity-50"
+          className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 rounded"
         >
-          {loading ? 'Ekleniyor...' : 'Ekle'}
+          Ekle
         </button>
       </form>
 
-      <ul className="space-y-3">
-        {categories.map((category) => (
-          <li
-            key={category.id}
-            className="flex justify-between items-center bg-gray-50 p-3 rounded-md border"
-          >
-            <span className="font-medium text-gray-800">{category.name}</span>
+      <ul className="space-y-2">
+        {categories.map((cat) => (
+          <li key={cat.id} className="flex justify-between p-3 border rounded">
+            {cat.name}
             <button
-              onClick={() => handleDeleteCategory(category.id)}
-              className="text-red-500 hover:text-red-700 font-semibold text-sm transition"
-              disabled={loading}
+              onClick={() => handleDeleteCategory(cat.id)}
+              className="text-red-500"
             >
               Sil
             </button>
           </li>
         ))}
-        {categories.length === 0 && !loading && (
-          <p className="text-gray-500">Henüz kategori yok.</p>
-        )}
       </ul>
     </div>
   );
 }
 
-// --- MENU ITEM MANAGER ---
+// ---------------- MENU ITEM MANAGER ----------------
 
 function MenuItemManager() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -178,26 +166,19 @@ function MenuItemManager() {
 
   const fetchData = async () => {
     setLoading(true);
-    setError(null);
 
-    const { data: categoryData, error: catError } = await supabase
+    const { data: catData } = await supabase
       .from('categories')
       .select('id, name')
       .order('display_order', { ascending: true });
 
-    if (catError) {
-      setError(catError.message);
-      setLoading(false);
-      return;
+    setCategories(catData || []);
+
+    if (catData && catData.length > 0 && !newItem.category_id) {
+      setNewItem((prev) => ({ ...prev, category_id: catData[0].id }));
     }
 
-    setCategories(categoryData || []);
-
-    if (categoryData && categoryData.length > 0 && !newItem.category_id) {
-      setNewItem((p) => ({ ...p, category_id: categoryData[0].id }));
-    }
-
-    const { data: itemData, error: itemError } = await supabase
+    const { data: itemData } = await supabase
       .from('menu_items')
       .select(`
         id,
@@ -206,106 +187,77 @@ function MenuItemManager() {
         price,
         is_available,
         category_id,
-        categories (name)
-      `)
-      .order('name', { ascending: true });
+        categories(name)
+      `);
 
-    if (itemError) setError(itemError.message);
-    else setMenuItems(itemData || []);
-
+    setMenuItems(itemData || []);
     setLoading(false);
   };
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newItem.name || !newItem.category_id || newItem.price <= 0) {
-      setError('Lütfen tüm alanları doğru doldurun.');
-      return;
-    }
+    if (!newItem.name || newItem.price <= 0)
+      return setError('Lütfen tüm alanları doldurun.');
 
-    setLoading(true);
+    const { error } = await supabase.from('menu_items').insert({
+      ...newItem,
+      description: newItem.description || null,
+      price: Number(newItem.price),
+    });
 
-    const { error: insertError } = await supabase
-      .from('menu_items')
-      .insert({
-        ...newItem,
-        price: Number(newItem.price),
-        description: newItem.description || null,
-      });
+    if (error) return setError(error.message);
 
-    if (insertError) setError(insertError.message);
-    else {
-      setNewItem({
-        name: '',
-        description: '',
-        price: 0,
-        category_id: categories[0]?.id || '',
-        is_available: true,
-      });
-      fetchData();
-    }
+    setNewItem({
+      name: '',
+      description: '',
+      price: 0,
+      category_id: categories[0]?.id || '',
+      is_available: true,
+    });
 
-    setLoading(false);
+    fetchData();
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!confirm('Bu menü öğesini silmek istediğinize emin misiniz?')) return;
+    if (!confirm("Ürünü silmek istiyor musunuz?")) return;
 
-    setLoading(true);
-
-    const { error } = await supabase
-      .from('menu_items')
-      .delete()
-      .eq('id', id);
-
-    if (error) setError(error.message);
-    else fetchData();
-
-    setLoading(false);
+    await supabase.from('menu_items').delete().eq('id', id);
+    fetchData();
   };
 
   const handleToggleAvailability = async (item: MenuItem) => {
-    setLoading(true);
-
-    const { error } = await supabase
+    await supabase
       .from('menu_items')
       .update({ is_available: !item.is_available })
       .eq('id', item.id);
 
-    if (error) setError(error.message);
-    else fetchData();
-
-    setLoading(false);
+    fetchData();
   };
 
   return (
-    <div className="mt-10 bg-white p-6 rounded-lg shadow-md">
-      <h3 className="text-2xl font-semibold mb-4 border-b pb-2 text-indigo-700">
-        Menü Öğeleri
-      </h3>
+    <div className="mt-8 bg-white p-6 rounded-lg shadow">
+      <h3 className="text-2xl font-semibold mb-4">Menü Öğeleri</h3>
 
-      {error && (
-        <p className="text-red-500 mb-4 bg-red-100 p-2 rounded">Hata: {error}</p>
-      )}
+      {error && <p className="text-red-500">{error}</p>}
 
-      {/* Form */}
-      <form onSubmit={handleAddItem} className="space-y-4 mb-6">
+      {/* Yeni Ürün Ekle */}
+      <form onSubmit={handleAddItem} className="grid grid-cols-1 gap-3 mb-6">
         <input
           type="text"
-          placeholder="Ürün Adı"
+          placeholder="Ürün adı"
           value={newItem.name}
           onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-          className="w-full p-3 border rounded-md"
+          className="border p-3 rounded"
         />
 
         <textarea
-          placeholder="Açıklama (Opsiyonel)"
-          value={newItem.description}
+          placeholder="Açıklama (opsiyonel)"
+          value={newItem.description || ''}
           onChange={(e) =>
             setNewItem({ ...newItem, description: e.target.value })
           }
-          className="w-full p-3 border rounded-md"
+          className="border p-3 rounded"
         />
 
         <input
@@ -315,16 +267,15 @@ function MenuItemManager() {
           onChange={(e) =>
             setNewItem({ ...newItem, price: Number(e.target.value) })
           }
-          className="w-full p-3 border rounded-md"
+          className="border p-3 rounded"
         />
 
-        {/* Category select */}
         <select
           value={newItem.category_id}
           onChange={(e) =>
             setNewItem({ ...newItem, category_id: e.target.value })
           }
-          className="w-full p-3 border rounded-md"
+          className="border p-3 rounded"
         >
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
@@ -333,42 +284,33 @@ function MenuItemManager() {
           ))}
         </select>
 
-        <button
-          type="submit"
-          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-md w-full"
-          disabled={loading}
-        >
+        <button className="bg-indigo-500 text-white py-2 rounded">
           Ekle
         </button>
       </form>
 
       {/* Ürün Listesi */}
-      <ul className="space-y-4">
+      <ul className="space-y-2">
         {menuItems.map((item) => (
-          <li
-            key={item.id}
-            className="flex justify-between items-center bg-gray-50 p-4 rounded-md border"
-          >
+          <li key={item.id} className="p-3 border rounded flex justify-between">
             <div>
-              <p className="font-semibold">{item.name}</p>
-              <p className="text-sm text-gray-600">
-                {item.categories?.name} — {item.price}₺
-              </p>
+              <div className="font-bold">{item.name}</div>
+              <div className="text-gray-500">{item.categories?.name}</div>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => handleToggleAvailability(item)}
-                className={`px-3 py-1 rounded text-white ${
-                  item.is_available ? 'bg-green-500' : 'bg-gray-400'
-                }`}
+                className={
+                  item.is_available ? "text-green-600" : "text-gray-400"
+                }
               >
-                {item.is_available ? 'Mevcut' : 'Kapalı'}
+                {item.is_available ? "Aktif" : "Pasif"}
               </button>
 
               <button
                 onClick={() => handleDeleteItem(item.id)}
-                className="text-red-500 hover:text-red-700"
+                className="text-red-500"
               >
                 Sil
               </button>
@@ -376,26 +318,26 @@ function MenuItemManager() {
           </li>
         ))}
       </ul>
+
     </div>
   );
 }
 
-// --- MAIN PAGE ---
+// ---------------- PAGE EXPORT (EN ÖNEMLİ KISIM) ----------------
 
 export default function AdminDashboardPage() {
   return (
     <div className="p-8 min-h-screen bg-gray-100">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-lg shadow-xl">
-          <h1 className="text-4xl font-extrabold text-gray-800">
-            🍽️ Yönetici Paneli
-          </h1>
+
+        <div className="flex justify-between items-center bg-white p-6 rounded-lg shadow mb-10">
+          <h1 className="text-3xl font-bold">🍽️ Yönetici Paneli</h1>
           <LogoutButton />
         </div>
 
         <CategoryManager />
         <MenuItemManager />
+
       </div>
     </div>
   );
